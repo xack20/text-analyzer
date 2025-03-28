@@ -28,7 +28,14 @@ def combine_files(directory, output_file, extensions=None, exclude_folders=None)
 # Example usage
 combine_files(
     "./server",
-    "combined_code.txt",
+    "combined_code_server.txt",
+    extensions=[".js", ".env"],
+    exclude_folders=["node_modules", ".git", "dist", "build", "logs", "public"]
+)
+
+combine_files(
+    "./client",
+    "combined_code_client.txt",
     extensions=[".js", ".env"],
     exclude_folders=["node_modules", ".git", "dist", "build", "logs", "public"]
 )

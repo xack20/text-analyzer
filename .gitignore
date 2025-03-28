@@ -66,6 +66,10 @@ web_modules/
 # Optional REPL history
 .node_repl_history
 
+full_code.py
+combined_code_client.txt
+combined_code_server.txt
+
 # Output of 'npm pack'
 *.tgz
 
