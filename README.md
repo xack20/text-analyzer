@@ -18,6 +18,7 @@ text-analyzer/
 ├── server/       # Backend (Node.js, Express)
 ├── mongo-docker-compose.yaml  # MongoDB Docker setup
 ├── redis-docker-compose.yaml  # Redis Docker setup
+├── Text Analyzer API.postman_collection.json       # Postman Collection
 ├── LICENSE       # License file
 └── README.md     # Project documentation
 ```
@@ -69,19 +70,19 @@ cd text-analyzer
    docker-compose -f ../redis-docker-compose.yaml up -d
    ```
 
-5. Seed the database (optional):
-
-   ```bash
-   npm run seed
-   ```
-
-6. Start the backend server:
+5. Start the backend server:
 
    ```bash
    npm run dev
    ```
 
-   The backend will run on `http://localhost:3000`.
+   The backend will run on `http://localhost:4000`.
+
+6. For Unit and Integration Test:
+
+   ```bash
+   npm run test
+   ```
 
 ### 3. Set Up the Frontend
 
@@ -96,8 +97,14 @@ cd text-analyzer
    ```bash
    npm install
    ```
+   
+4. Copy the `.env.example` file to `.env` and update the environment variables as needed:
 
-3. Start the frontend development server:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+5. Start the frontend development server:
 
    ```bash
    npm run dev
@@ -107,6 +114,9 @@ cd text-analyzer
 
 ### 4. Access the Application
 
+- Postman Collection in Provided
+- Need to create a test-token for Performing other operations
+or,
 - Open your browser and navigate to `http://localhost:3000`.
 - Log in using Google OAuth to access the dashboard and start analyzing texts.
 
@@ -115,16 +125,12 @@ cd text-analyzer
 ### Backend (Server)
 
 - `npm run dev`: Start the backend in development mode.
-- `npm run start`: Start the backend in production mode.
-- `npm run seed`: Seed the database with sample data.
 - `npm run test`: Run tests for the backend.
 
 ### Frontend (Client)
 
 - `npm run dev`: Start the frontend in development mode.
 - `npm run build`: Build the frontend for production.
-- `npm run start`: Start the frontend in production mode.
-- `npm run lint`: Lint the frontend code.
 
 ## Technologies Used
 
@@ -150,9 +156,6 @@ cd text-analyzer
 
 This project is licensed under the [MIT License](LICENSE).
 
-## Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request.
 
 ## Troubleshooting
 
@@ -162,4 +165,4 @@ Contributions are welcome! Please fork the repository and submit a pull request.
 
 ## Contact
 
-For any issues or questions, please contact the project maintainer at `your-email@example.com`.
+For any issues or questions, please contact the project maintainer at `zakariahossain20example.com`.
