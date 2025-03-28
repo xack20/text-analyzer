@@ -1,0 +1,1171 @@
+// --- BEGIN ./server\.env ---
+
+PORT=4000
+MONGODB_URI=mongodb://admin:password@localhost:27017/text-analyzer?authSource=admin
+SESSION_SECRET=NoP6oXOV9QI9fd_uL7tsT_I4NxNP76MwM4iA6dGu3C5ZooWNXkZU8VvLotViBnQhfdc
+JWT_SECRET=aFvfmosFKduha1DKaFAscNre_0Yw4qUFRUn8oFqiYJ6o3tRGkMAJ6xkXXDOyQEirpys
+GOOGLE_CLIENT_ID=1004836163437-1jpqv0o8vrvrae9g246vjt4ue4f83sd0.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+CALLBACK_URL=http://localhost:4000/auth/google/callback
+REDIS_URL=redis://localhost:6379
+NODE_ENV=development
+
+// --- END ./server\.env ---
+
+// --- BEGIN ./server\src\app.js ---
+
+const express = require('express');
+const path = require('path');
+const morgan = require('morgan');
+const passport = require('passport');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const session = require('express-session');
+const connectDB = require('./config/database');
+const config = require('./config/config');
+const logger = require('./utils/logger');
+
+// Import Redis modules
+const { createClient } = require('redis');
+const RedisStore = require('connect-redis').default; // Note the .default here
+
+// Load passport config
+require('./config/passport');
+
+// Connect to database
+connectDB();
+
+// Initialize Redis client and connect
+let redisClient;
+let sessionStore;
+
+try {
+    // Initialize Redis client
+    redisClient = createClient({
+        url: config.REDIS_URL || 'redis://localhost:6379'
+    });
+
+    // Connect to Redis
+    redisClient.connect().catch(err => {
+        logger.error(`Redis connection error: ${err.message}`);
+        console.error('Redis connection failed:', err);
+    });
+
+    redisClient.on('error', (err) => {
+        logger.error(`Redis error: ${err.message}`);
+        console.error('Redis error:', err);
+    });
+
+    redisClient.on('connect', () => {
+        logger.info('Connected to Redis successfully');
+        console.log('Connected to Redis');
+    });
+
+    // Create Redis store
+    sessionStore = new RedisStore({
+        client: redisClient,
+        prefix: 'text-analyzer:sess:'
+    });
+
+    logger.info('Redis store created successfully');
+} catch (error) {
+    logger.error(`Redis setup error: ${error.message}`);
+    console.error('Failed to setup Redis:', error);
+    // Fall back to memory store
+    sessionStore = undefined;
+}
+
+// Initialize Express app
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(cors({
+    origin: ['http://localhost:3000'], // Allow frontend URL
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+
+app.use(session({
+    secret: config.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: config.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+    }
+}));
+
+
+// Logging
+app.use(morgan('dev', {
+    stream: {
+        write: (message) => logger.http(message.trim())
+    }
+}));
+
+// Passport middleware - AFTER session middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Static files
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Routes
+app.use('/auth', require('./routes/auth'));
+app.use('/api', require('./routes/api'));
+
+// Home route
+// app.get('/', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../public/index.html'));
+// });
+
+// // Dashboard route
+// app.get('/dashboard', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+// });
+
+
+// Error handling middleware
+app.use((req, res, next) => {
+    const error = new Error('Not Found');
+    error.status = 404;
+    next(error);
+});
+
+app.use((error, req, res, next) => {
+    const statusCode = error.status || 500;
+    logger.error(`${statusCode} - ${error.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+
+    res.status(statusCode).json({
+        message: error.message,
+        status: statusCode,
+        stack: config.NODE_ENV === 'development' ? error.stack : undefined
+    });
+});
+
+// Start server
+const PORT = config.PORT;
+app.listen(PORT, () => {
+    logger.info(`Server running in ${config.NODE_ENV} mode on port ${PORT}`);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+    logger.error(`Unhandled Rejection: ${err.message}`);
+    // Close server & exit process
+    process.exit(1);
+});
+
+module.exports = app; // Export for testing
+
+
+// --- END ./server\src\app.js ---
+
+// --- BEGIN ./server\src\config\config.js ---
+
+require('dotenv').config();
+
+module.exports = {
+    PORT: process.env.PORT,
+    MONGODB_URI: process.env.MONGODB_URI,
+    JWT_SECRET: process.env.JWT_SECRET,
+    SESSION_SECRET: process.env.SESSION_SECRET,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    CALLBACK_URL: process.env.CALLBACK_URL,
+    REDIS_URL: process.env.REDIS_URL,
+    NODE_ENV: process.env.NODE_ENV
+};
+
+
+// --- END ./server\src\config\config.js ---
+
+// --- BEGIN ./server\src\config\database.js ---
+
+const mongoose = require("mongoose");
+const config = require("./config");
+const logger = require("../utils/logger");
+
+const connectDB = async () => {
+    try {
+        await mongoose.connect(config.MONGODB_URI);
+        logger.info("MongoDB connected successfully");
+    } catch (error) {
+        logger.error(`MongoDB connection error: ${error.message}`);
+        process.exit(1);
+    }
+};
+
+module.exports = connectDB;
+
+
+// --- END ./server\src\config\database.js ---
+
+// --- BEGIN ./server\src\config\passport.js ---
+
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const User = require("../models/User");
+const config = require("./config");
+const logger = require("../utils/logger");
+
+passport.use(
+    new GoogleStrategy(
+        {
+            clientID: config.GOOGLE_CLIENT_ID,
+            clientSecret: config.GOOGLE_CLIENT_SECRET,
+            callbackURL: config.CALLBACK_URL,
+        },
+        async (accessToken, refreshToken, profile, done) => {
+            try {
+                // Check if user already exists
+                let user = await User.findOne({ googleId: profile.id });
+
+                if (user) {
+                    return done(null, user);
+                }
+
+                // If not, create a new user
+                user = await User.create({
+                    googleId: profile.id,
+                    displayName: profile.displayName,
+                    email: profile.emails[0].value,
+                });
+
+                logger.info(`New user created: ${user.email}`);
+                return done(null, user);
+            } catch (error) {
+                logger.error(`Auth error: ${error.message}`);
+                return done(error, null);
+            }
+        }
+    )
+);
+
+passport.serializeUser((user, done) => {
+    done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await User.findById(id);
+        done(null, user);
+    } catch (error) {
+        done(error, null);
+    }
+});
+
+module.exports = passport;
+
+
+// --- END ./server\src\config\passport.js ---
+
+// --- BEGIN ./server\src\controllers\authController.js ---
+
+const jwt = require('jsonwebtoken');
+const config = require('../config/config');
+const User = require('../models/User');
+const logger = require('../utils/logger');
+
+module.exports = {
+    // Handle Google OAuth callback
+    googleCallback: (req, res) => {
+        try {
+            // Create JWT token
+            const token = jwt.sign(
+                {
+                    id: req.user.id,
+                    email: req.user.email,
+                    name: req.user.displayName
+                },
+                config.JWT_SECRET,
+                { expiresIn: '1d' }
+            );
+
+            logger.info(`User logged in: ${req.user.email}`);
+
+            // Redirect to frontend with token
+            res.redirect(`http://localhost:3000/dashboard?token=${token}`);
+        } catch (error) {
+            logger.error(`Auth callback error: ${error.message}`);
+            res.redirect('http://localhost:3000/login?error=auth_failed');
+        }
+    },
+
+    // Get current user info
+    getCurrentUser: async (req, res) => {
+        try {
+            const user = await User.findById(req.user.id).select('-googleId');
+
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' });
+            }
+
+            res.json(user);
+        } catch (error) {
+            logger.error(`Get current user error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Handle logout
+    // Handle logout
+    logout: (req, res) => {
+        if (req.logout) {
+            req.logout(function (err) {
+                if (err) {
+                    logger.error(`Logout error: ${err.message}`);
+                    return res.status(500).json({ message: 'Logout failed' });
+                }
+
+                logger.info('User logged out');
+                res.redirect('http://localhost:3000/login');
+            });
+        } else {
+            logger.warn('req.logout function not available');
+            res.redirect('http://localhost:3000/login');
+        }
+    },
+
+    // Add development login endpoint for testing
+    devLogin: (req, res) => {
+        // Only available in development mode
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(404).json({ message: 'Not found' });
+        }
+
+        try {
+            // Create a test token
+            const token = jwt.sign(
+                {
+                    id: 'dev-user-id',
+                    email: 'dev@example.com',
+                    name: 'Development User'
+                },
+                config.JWT_SECRET,
+                { expiresIn: '1d' }
+            );
+
+            logger.info('Development user logged in');
+
+            // Return token directly for development purposes
+            res.json({ token });
+        } catch (error) {
+            logger.error(`Development login error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+};
+
+
+// --- END ./server\src\controllers\authController.js ---
+
+// --- BEGIN ./server\src\controllers\textController.js ---
+
+const Text = require('../models/Text');
+const textAnalyzer = require('../services/textAnalyzer');
+const logger = require('../utils/logger');
+
+module.exports = {
+    // Create a new text document
+    createText: async (req, res) => {
+        try {
+            const { title, content } = req.body;
+
+            if (!title || !content) {
+                return res.status(400).json({ message: 'Title and content are required' });
+            }
+
+            const newText = await Text.create({
+                title,
+                content,
+                user: req.user.id
+            });
+
+            logger.info(`Text created: ${newText._id} by user ${req.user.id}`);
+
+            res.status(201).json(newText);
+        } catch (error) {
+            logger.error(`Create text error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get all texts for a user
+    getUserTexts: async (req, res) => {
+        try {
+            const texts = await Text.find({ user: req.user.id }).sort({ createdAt: -1 });
+            res.json(texts);
+        } catch (error) {
+            logger.error(`Get user texts error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get a single text by ID
+    getText: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            res.json(text);
+        } catch (error) {
+            logger.error(`Get text error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Update a text
+    updateText: async (req, res) => {
+        try {
+            const { title, content } = req.body;
+
+            if (!title || !content) {
+                return res.status(400).json({ message: 'Title and content are required' });
+            }
+
+            let text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized update attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            text = await Text.findByIdAndUpdate(
+                req.params.id,
+                {
+                    title,
+                    content,
+                    updatedAt: Date.now()
+                },
+                { new: true }
+            );
+
+            logger.info(`Text updated: ${text._id} by user ${req.user.id}`);
+
+            res.json(text);
+        } catch (error) {
+            logger.error(`Update text error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Delete a text
+    deleteText: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized delete attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            await text.deleteOne();
+
+            logger.info(`Text deleted: ${req.params.id} by user ${req.user.id}`);
+
+            res.json({ message: 'Text removed' });
+        } catch (error) {
+            logger.error(`Delete text error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get word count
+    getWordCount: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const wordCount = textAnalyzer.countWords(text.content);
+
+            res.json({ wordCount });
+        } catch (error) {
+            logger.error(`Get word count error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get character count
+    getCharacterCount: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const characterCount = textAnalyzer.countCharacters(text.content);
+
+            res.json({ characterCount });
+        } catch (error) {
+            logger.error(`Get character count error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get sentence count
+    getSentenceCount: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const sentenceCount = textAnalyzer.countSentences(text.content);
+
+            res.json({ sentenceCount });
+        } catch (error) {
+            logger.error(`Get sentence count error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get paragraph count
+    getParagraphCount: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const paragraphCount = textAnalyzer.countParagraphs(text.content);
+
+            res.json({ paragraphCount });
+        } catch (error) {
+            logger.error(`Get paragraph count error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get longest words in paragraphs
+    getLongestWords: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const longestWords = textAnalyzer.findLongestWordsInParagraphs(text.content);
+
+            res.json({ longestWords });
+        } catch (error) {
+            logger.error(`Get longest words error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    },
+
+    // Get complete analysis
+    getAnalysis: async (req, res) => {
+        try {
+            const text = await Text.findById(req.params.id);
+
+            if (!text) {
+                return res.status(404).json({ message: 'Text not found' });
+            }
+
+            // Check if the text belongs to the user
+            if (text.user.toString() !== req.user.id) {
+                logger.warn(`Unauthorized access attempt to text ${req.params.id} by user ${req.user.id}`);
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const analysis = textAnalyzer.analyzeText(text.content);
+
+            res.json(analysis);
+        } catch (error) {
+            logger.error(`Get analysis error: ${error.message}`);
+            res.status(500).json({ message: 'Server error' });
+        }
+    }
+};
+
+
+// --- END ./server\src\controllers\textController.js ---
+
+// --- BEGIN ./server\src\middleware\auth.js ---
+
+const jwt = require("jsonwebtoken");
+const config = require("../config/config");
+const logger = require("../utils/logger");
+const User = require("../models/User");
+
+
+module.exports = {
+    // In your middleware/auth.js
+    ensureAuth : (req, res, next) => {
+        // First check if user is authenticated via session
+        if (req.isAuthenticated()) {
+            return next();
+        }
+
+        // If not, check for JWT token
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        try {
+            const decoded = jwt.verify(token, config.JWT_SECRET);
+            req.user = decoded;
+            next();
+        } catch (error) {
+            return res.status(401).json({ message: "Token invalid or expired" });
+        }
+    },
+
+
+    ensureGuest: (req, res, next) => {
+        if (req.isAuthenticated()) {
+            return res.redirect("/dashboard");
+        }
+        next();
+    },
+};
+
+
+// --- END ./server\src\middleware\auth.js ---
+
+// --- BEGIN ./server\src\middleware\cache.js ---
+
+const redis = require('redis');
+const { promisify } = require('util');
+const config = require('../config/config');
+const logger = require('../utils/logger');
+
+// Create Redis client
+const client = redis.createClient(config.REDIS_URL);
+
+client.on('error', (err) => {
+    logger.error(`Redis Error: ${err}`);
+});
+
+client.on('connect', () => {
+    logger.info('Redis connected successfully');
+});
+
+const getAsync = promisify(client.get).bind(client);
+const setAsync = promisify(client.set).bind(client);
+
+/**
+ * Cache middleware for API responses
+ * @param {number} duration - Cache duration in seconds
+ * @returns {Function} Express middleware
+ */
+const cache = (duration = 60) => {
+    return async (req, res, next) => {
+        // Skip caching if Redis is not available
+        if (!client.connected) {
+            return next();
+        }
+
+        // Create a unique key based on the route and any query parameters
+        const key = `__text_analyzer__${req.originalUrl || req.url}_${req.params.id || ''}_${req.user ? req.user.id : ''}`;
+
+        try {
+            // Try to get cached response
+            const cachedResponse = await getAsync(key);
+
+            if (cachedResponse) {
+                logger.debug(`Cache hit for key: ${key}`);
+                const parsedResponse = JSON.parse(cachedResponse);
+                return res.status(200).json(parsedResponse);
+            }
+
+            // Store the original send function
+            const originalSend = res.send;
+
+            // Override res.send method to cache the response before sending
+            res.send = function (body) {
+                // Only cache successful responses
+                if (res.statusCode === 200) {
+                    setAsync(key, body, 'EX', duration)
+                        .catch(err => logger.error(`Redis set error: ${err.message}`));
+                }
+
+                // Call the original send method
+                originalSend.call(this, body);
+            };
+
+            logger.debug(`Cache miss for key: ${key}`);
+            next();
+        } catch (error) {
+            logger.error(`Cache middleware error: ${error.message}`);
+            next();
+        }
+    };
+};
+
+module.exports = { cache, client };
+
+
+// --- END ./server\src\middleware\cache.js ---
+
+// --- BEGIN ./server\src\middleware\rateLimiter.js ---
+
+const rateLimit = require('express-rate-limit');
+const logger = require('../utils/logger');
+
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    handler: (req, res) => {
+        logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+        res.status(429).json({
+            message: 'Too many requests, please try again later.'
+        });
+    }
+});
+
+module.exports = apiLimiter;
+
+
+// --- END ./server\src\middleware\rateLimiter.js ---
+
+// --- BEGIN ./server\src\models\Text.js ---
+
+const mongoose = require("mongoose");
+
+const TextSchema = new mongoose.Schema({
+    content: {
+        type: String,
+        required: true,
+    },
+    title: {
+        type: String,
+        required: true,
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now,
+    },
+});
+
+module.exports = mongoose.model("Text", TextSchema);
+
+
+// --- END ./server\src\models\Text.js ---
+
+// --- BEGIN ./server\src\models\User.js ---
+
+const mongoose = require("mongoose");
+
+const UserSchema = new mongoose.Schema({
+  googleId: {
+    type: String,
+    required: true,
+  },
+  displayName: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+module.exports = mongoose.model("User", UserSchema);
+
+
+// --- END ./server\src\models\User.js ---
+
+// --- BEGIN ./server\src\routes\api.js ---
+
+const express = require('express');
+const router = express.Router();
+const textController = require('../controllers/textController');
+const { ensureAuth } = require('../middleware/auth');
+const apiLimiter = require('../middleware/rateLimiter');
+const { cache } = require('../middleware/cache');
+
+// Apply rate limiting to all routes
+router.use(apiLimiter);
+
+// @route   POST /api/texts
+// @desc    Create a new text
+router.post('/texts', ensureAuth, textController.createText);
+
+// @route   GET /api/texts
+// @desc    Get all texts for a user
+router.get('/texts', ensureAuth, cache(300), textController.getUserTexts);
+
+// @route   GET /api/texts/:id
+// @desc    Get a text by id
+router.get('/texts/:id', ensureAuth, cache(300), textController.getText);
+
+// @route   PUT /api/texts/:id
+// @desc    Update a text
+router.put('/texts/:id', ensureAuth, textController.updateText);
+
+// @route   DELETE /api/texts/:id
+// @desc    Delete a text
+router.delete('/texts/:id', ensureAuth, textController.deleteText);
+
+// @route   GET /api/texts/:id/words
+// @desc    Get word count
+router.get('/texts/:id/words', ensureAuth, cache(300), textController.getWordCount);
+
+// @route   GET /api/texts/:id/characters
+// @desc    Get character count
+router.get('/texts/:id/characters', ensureAuth, cache(300), textController.getCharacterCount);
+
+// @route   GET /api/texts/:id/sentences
+// @desc    Get sentence count
+router.get('/texts/:id/sentences', ensureAuth, cache(300), textController.getSentenceCount);
+
+// @route   GET /api/texts/:id/paragraphs
+// @desc    Get paragraph count
+router.get('/texts/:id/paragraphs', ensureAuth, cache(300), textController.getParagraphCount);
+
+// @route   GET /api/texts/:id/longest-words
+// @desc    Get longest words in paragraphs
+router.get('/texts/:id/longest-words', ensureAuth, cache(300), textController.getLongestWords);
+
+// @route   GET /api/texts/:id/analysis
+// @desc    Get complete analysis
+router.get('/texts/:id/analysis', ensureAuth, cache(300), textController.getAnalysis);
+
+module.exports = router;
+
+
+// --- END ./server\src\routes\api.js ---
+
+// --- BEGIN ./server\src\routes\auth.js ---
+
+const express = require('express');
+const passport = require('passport');
+const router = express.Router();
+const authController = require('../controllers/authController');
+const { ensureAuth } = require('../middleware/auth');
+
+// @route   GET /auth/google
+// @desc    Authenticate with Google
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+// @route   GET /auth/google/callback
+// @desc    Google auth callback
+// In your backend auth.js routes or authController.js
+router.get(
+    '/google/callback',
+    passport.authenticate('google', { failureRedirect: '/' }),
+    // (req, res) => {
+    //     // Create JWT token
+    //     const token = jwt.sign(
+    //         {
+    //             id: req.user.id,
+    //             email: req.user.email,
+    //             name: req.user.displayName
+    //         },
+    //         config.JWT_SECRET,
+    //         { expiresIn: '1d' }
+    //     );
+
+    //     // Redirect to frontend with token
+    //     res.redirect(`http://localhost:3000/dashboard?token=${token}`);
+    // }
+
+    authController.googleCallback
+);
+
+
+// @route   GET /auth/current
+// @desc    Get current user
+router.get('/current', ensureAuth, authController.getCurrentUser);
+
+// @route   GET /auth/logout
+// @desc    Logout user
+router.get('/logout', authController.logout);
+
+
+// @route   GET /auth/test-token
+// @desc    Get a test token (development only)
+router.get('/test-token', (req, res) => {
+    if (config.NODE_ENV === 'production') {
+        return res.status(404).json({ message: 'Not found' });
+    }
+
+    // Create a test token
+    const token = jwt.sign(
+        {
+            id: 'test-user-id',
+            email: 'test@example.com',
+            name: 'Test User'
+        },
+        config.JWT_SECRET,
+        { expiresIn: '1d' }
+    );
+
+    res.json({ token });
+});
+
+
+router.get('/dev-login', authController.devLogin);
+
+module.exports = router;
+
+
+// --- END ./server\src\routes\auth.js ---
+
+// --- BEGIN ./server\src\services\textAnalyzer.js ---
+
+/**
+ * Text analyzer service
+ * Provides functions to analyze text for various metrics
+ */
+class TextAnalyzer {
+    /**
+     * Count the number of words in a text
+     * @param {string} text - The text to analyze
+     * @returns {number} The number of words
+     */
+    countWords(text) {
+        if (!text || typeof text !== "string") {
+            return 0;
+        }
+
+        return text
+            .trim()
+            .split(/\s+/)
+            .filter((word) => word.length > 0).length;
+    }
+
+    /**
+     * Count the number of characters in a text (excluding whitespace)
+     * @param {string} text - The text to analyze
+     * @returns {number} The number of characters
+     */
+    countCharacters(text) {
+        if (!text || typeof text !== "string") {
+            return 0;
+        }
+
+        return text.replace(/\s+/g, "").length;
+    }
+
+    /**
+     * Count the number of sentences in a text
+     * @param {string} text - The text to analyze
+     * @returns {number} The number of sentences
+     */
+    countSentences(text) {
+        if (!text || typeof text !== "string") {
+            return 0;
+        }
+
+        // Split by sentence endings (., !, ?) and filter out empty entries
+        const sentences = text
+            .split(/[.!?]+/)
+            .filter((sentence) => sentence.trim().length > 0);
+        return sentences.length;
+    }
+
+    /**
+     * Count the number of paragraphs in a text
+     * @param {string} text - The text to analyze
+     * @returns {number} The number of paragraphs
+     */
+    countParagraphs(text) {
+        if (!text || typeof text !== "string") {
+            return 0;
+        }
+
+        // Split by double newlines and filter out empty entries
+        const paragraphs = text
+            .split(/\n\s*\n/)
+            .filter((para) => para.trim().length > 0);
+        return paragraphs.length || 1; // If no paragraph breaks, count as 1
+    }
+
+    /**
+     * Find the longest word in each paragraph
+     * @param {string} text - The text to analyze
+     * @returns {Array} Array of longest words for each paragraph
+     */
+    findLongestWordsInParagraphs(text) {
+        if (!text || typeof text !== "string") {
+            return [];
+        }
+
+        // Split text into paragraphs
+        const paragraphs = text
+            .split(/\n\s*\n/)
+            .filter((para) => para.trim().length > 0);
+
+        // If no paragraphs found, treat the whole text as one paragraph
+        if (paragraphs.length === 0 && text.trim().length > 0) {
+            paragraphs.push(text);
+        }
+
+        // Find longest word in each paragraph
+        return paragraphs.map((para) => {
+            const words = para
+                .trim()
+                .split(/\s+/)
+                .filter((word) => word.length > 0);
+            if (words.length === 0) return "";
+
+            // Remove punctuation and convert to lowercase for comparison
+            const cleanWords = words.map((word) =>
+                word.replace(/[^\w]/g, "").toLowerCase()
+            );
+
+            let longestWordIndex = 0;
+            let maxLength = cleanWords[0].length;
+
+            for (let i = 1; i < cleanWords.length; i++) {
+                if (cleanWords[i].length > maxLength) {
+                    maxLength = cleanWords[i].length;
+                    longestWordIndex = i;
+                }
+            }
+
+            return words[longestWordIndex];
+        });
+    }
+
+    /**
+     * Get complete analysis of a text
+     * @param {string} text - The text to analyze
+     * @returns {Object} Complete analysis results
+     */
+    analyzeText(text) {
+        return {
+            wordCount: this.countWords(text),
+            characterCount: this.countCharacters(text),
+            sentenceCount: this.countSentences(text),
+            paragraphCount: this.countParagraphs(text),
+            longestWords: this.findLongestWordsInParagraphs(text),
+        };
+    }
+}
+
+module.exports = new TextAnalyzer();
+
+
+// --- END ./server\src\services\textAnalyzer.js ---
+
+// --- BEGIN ./server\src\utils\logger.js ---
+
+const winston = require('winston');
+const path = require('path');
+const config = require('../config/config');
+
+// Define log format
+const logFormat = winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    winston.format.json()
+);
+
+// Create logger instance
+const logger = winston.createLogger({
+    level: config.NODE_ENV === 'production' ? 'info' : 'debug',
+    format: logFormat,
+    defaultMeta: { service: 'text-analyzer' },
+    transports: [
+        // Write logs to console
+        new winston.transports.Console({
+            format: winston.format.combine(
+                winston.format.colorize(),
+                winston.format.printf(
+                    info => `${info.timestamp} ${info.level}: ${info.message}`
+                )
+            )
+        }),
+        // Write all logs to files
+        new winston.transports.File({
+            filename: path.join('logs', 'error.log'),
+            level: 'error'
+        }),
+        new winston.transports.File({
+            filename: path.join('logs', 'combined.log')
+        })
+    ]
+});
+
+module.exports = logger;
+
+
+// --- END ./server\src\utils\logger.js ---
+
