@@ -1,0 +1,366 @@
+{
+	"info": {
+		"_postman_id": "c09202b2-18ca-439b-8202-3bd0ab035448",
+		"name": "Text Analyzer API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "23961166"
+	},
+	"item": [
+		{
+			"name": "CRUD",
+			"item": [
+				{
+					"name": "Create a New Text Document",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var response = pm.response.json();",
+									"pm.collectionVariables.set(\"textId\", response._id);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Sample Text\",\n  \"content\": \"The quick brown fox jumps over the lazy dog. The lazy dog slept in the sun.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/texts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Texts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update a Text",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Text\",\n  \"content\": \"The quick brown fox jumps over the lazy dog. The lazy dog slept in the sun. The fox was very quick.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get a Specific Text",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete a Text",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Text Analysis Endpoints",
+			"item": [
+				{
+					"name": "Word Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/words",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"words"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Character Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/characters",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sentence Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/sentences",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"sentences"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Paragraph Count",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/paragraphs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"paragraphs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Longest Words",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/longest-words",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"longest-words"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Analysis",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/texts/{{textId}}/analysis",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"texts",
+								"{{textId}}",
+								"analysis"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/current",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"current"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var response = pm.response.json();\r",
+									"pm.collectionVariables.set(\"token\", response.token);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/auth/test-token",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"test-token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:4000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3ZTU0OTNlMGU4ZWQ2OGI5ZGU5NTE2MSIsImVtYWlsIjoiemFrYXJpYWhvc3NhaW4yMEBnbWFpbC5jb20iLCJuYW1lIjoiWmFrYXJpYSBIb3NzYWluIiwiaWF0IjoxNzQzMDgwNDcyLCJleHAiOjE3NDMxNjY4NzJ9.FOOh2faR4I4D9cgdpumZvdGe3B-wvNqLVvJcrzARrc8",
+			"type": "string"
+		},
+		{
+			"key": "textId",
+			"value": ""
+		}
+	]
+}
