@@ -5,6 +5,7 @@ const config = require('../config/config'); // Add this if missing
 const router = express.Router();
 const authController = require('../controllers/authController');
 const { ensureAuth } = require('../middleware/auth');
+const generateRandomId = require('../utils/others');
 
 
 // @route   GET /auth/google
@@ -17,22 +18,6 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get(
     '/google/callback',
     passport.authenticate('google', { failureRedirect: '/' }),
-    // (req, res) => {
-    //     // Create JWT token
-    //     const token = jwt.sign(
-    //         {
-    //             id: req.user.id,
-    //             email: req.user.email,
-    //             name: req.user.displayName
-    //         },
-    //         config.JWT_SECRET,
-    //         { expiresIn: '1d' }
-    //     );
-
-    //     // Redirect to frontend with token
-    //     res.redirect(`http://localhost:3000/dashboard?token=${token}`);
-    // }
-
     authController.googleCallback
 );
 
@@ -56,7 +41,7 @@ router.get('/test-token', (req, res) => {
     // Create a test token
     const token = jwt.sign(
         {
-            id: 'test-user-id',
+            id: generateRandomId(),
             email: 'test@example.com',
             name: 'Test User'
         },

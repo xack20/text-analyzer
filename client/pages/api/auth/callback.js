@@ -1,7 +1,7 @@
 export default function handler(req, res) {
     // Extract token from query parameters
     const { token } = req.query;
-
+    localStorage.setItem('token', token);
     if (!token) {
         return res.status(400).json({ message: 'No token provided' });
     }

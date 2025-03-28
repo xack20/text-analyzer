@@ -1,5 +1,5 @@
 import { GoogleOutlined } from '@ant-design/icons';
-import { Button, Card, Divider, Space, Typography } from 'antd';
+import { Button, Card, Space, Typography } from 'antd';
 import { loginWithGoogle } from '../../services/auth';
 
 const { Title, Paragraph } = Typography;
@@ -14,7 +14,7 @@ const LoginForm = () => {
                 </Paragraph>
             </div>
 
-            <Divider>Login</Divider>
+            {/* <Divider>Login</Divider> */}
 
             <div style={{ textAlign: 'center' }}>
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -27,30 +27,8 @@ const LoginForm = () => {
                     >
                         Sign in with Google
                     </Button>
-
-                    {process.env.NODE_ENV !== 'production' && (
-                        <Button
-                            type="default"
-                            size="large"
-                            onClick={() => {
-                                fetch('http://localhost:4000/auth/test-token')
-                                    .then(res => res.json())
-                                    .then(data => {
-                                        localStorage.setItem('token', data.token);
-                                        window.location.href = '/dashboard';
-                                    })
-                                    .catch(err => console.error('Test token error:', err));
-                            }}
-                            style={{ width: '100%', marginTop: 16 }}
-                        >
-                            Dev: Get Test Token
-                        </Button>
-                    )}
                 </Space>
             </div>
-
-
-
         </Card>
     );
 };

@@ -3,7 +3,6 @@ import { Button, Card, Col, Row, Typography } from 'antd';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { loginWithGoogle } from '../services/auth';
 
 const { Title, Paragraph } = Typography;
 
@@ -29,9 +28,9 @@ export default function Home() {
                         type="primary"
                         size="large"
                         icon={<LoginOutlined />}
-                        onClick={loginWithGoogle}
+                        onClick={() => router.push('/login')}
                     >
-                        Sign in with Google
+                        Sign in
                     </Button>
                 )}
             </div>
