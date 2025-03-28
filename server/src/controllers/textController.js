@@ -115,7 +115,7 @@ module.exports = {
                 return res.status(403).json({ message: 'Unauthorized' });
             }
 
-            await text.remove();
+            await text.deleteOne();
 
             logger.info(`Text deleted: ${req.params.id} by user ${req.user.id}`);
 

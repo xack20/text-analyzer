@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Analyzer Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background: #4285F4;
+            color: #fff;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 10px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-danger {
+            background: #DB4437;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .text-list {
+            margin-top: 20px;
+        }
+        .text-item {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .analysis-results {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Text Analyzer Dashboard</h1>
+    
+    <div class="container">
+        <h2>Create New Text</h2>
+        <form id="text-form">
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" required>
+            </div>
+            <div>
+                <label for="content">Content:</label>
+                <textarea id="content" required></textarea>
+            </div>
+            <button type="submit" class="btn">Save Text</button>
+        </form>
+    </div>
+    
+    <div class="container">
+        <h2>Your Texts</h2>
+        <div id="text-list" class="text-list">
+            <p>Loading your texts...</p>
+        </div>
+    </div>
+
+    <script>
+        // Check for token
+        const token = localStorage.getItem('textAnalyzerToken');
+        if (!token) {
+            window.location.href = '/';
+        }
+
+        // API base URL
+        const API_URL = '/api';
+
+        // Fetch all texts
+        async function fetchTexts() {
+            try {
+                const response = await fetch(`${API_URL}/texts`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch texts');
+                }
+                
+                const texts = await response.json();
+                displayTexts(texts);
+            } catch (error) {
+                console.error('Error fetching texts:', error);
+                document.getElementById('text-list').innerHTML = `<p>Error loading texts: ${error.message}</p>`;
+            }
+        }
+
+        // Display texts
+        function displayTexts(texts) {
+            const textListEl = document.getElementById('text-list');
+            
+            if (texts.length === 0) {
+                textListEl.innerHTML = '<p>No texts found. Create your first text above!</p>';
+                return;
+            }
+            
+            let html = '';
+            texts.forEach(text => {
+                const date = new Date(text.createdAt).toLocaleDateString();
+                html += `
+                    <div class="text-item" data-id="${text._id}">
+                        <h3>${text.title}</h3>
+                        <p>${text.content.substring(0, 100)}${text.content.length > 100 ? '...' : ''}</p>
+                        <p><small>Created: ${date}</small></p>
+                        <button class="btn analyze-btn" data-id="${text._id}">Analyze</button>
+                        <button class="btn btn-danger delete-btn" data-id="${text._id}">Delete</button>
+                        <div class="analysis-results hidden" id="analysis-${text._id}"></div>
+                    </div>
+                `;
+            });
+            
+            textListEl.innerHTML = html;
+            
+            // Add event listeners
+            document.querySelectorAll('.analyze-btn').forEach(btn => {
+                btn.addEventListener('click', analyzeText);
+            });
+            
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', deleteText);
+            });
+        }
+
+        // Analyze text
+        async function analyzeText(e) {
+            const textId = e.target.dataset.id;
+            const resultsEl = document.getElementById(`analysis-${textId}`);
+            
+            // Toggle results visibility
+            if (!resultsEl.classList.contains('hidden')) {
+                resultsEl.classList.add('hidden');
+                return;
+            }
+            
+            resultsEl.classList.remove('hidden');
+            resultsEl.innerHTML = 'Analyzing...';
+            
+            try {
+                const response = await fetch(`${API_URL}/texts/${textId}/analysis`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to analyze text');
+                }
+                
+                const analysis = await response.json();
+                
+                resultsEl.innerHTML = `
+                    <h4>Analysis Results</h4>
+                    <p>Word Count: ${analysis.wordCount}</p>
+                    <p>Character Count: ${analysis.characterCount}</p>
+                    <p>Sentence Count: ${analysis.sentenceCount}</p>
+                    <p>Paragraph Count: ${analysis.paragraphCount}</p>
+                    <p>Longest Words: ${analysis.longestWords.join(', ')}</p>
+                `;
+            } catch (error) {
+                console.error('Error analyzing text:', error);
+                resultsEl.innerHTML = `<p>Error analyzing text: ${error.message}</p>`;
+            }
+        }
+
+        // Delete text
+        async function deleteText(e) {
+            if (!confirm('Are you sure you want to delete this text?')) {
+                return;
+            }
+            
+            const textId = e.target.dataset.id;
+            
+            try {
+                const response = await fetch(`${API_URL}/texts/${textId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete text');
+                }
+                
+                // Remove from DOM
+                const textItem = document.querySelector(`.text-item[data-id="${textId}"]`);
+                textItem.remove();
+                
+                // Refresh if no texts left
+                if (document.querySelectorAll('.text-item').length === 0) {
+                    fetchTexts();
+                }
+            } catch (error) {
+                console.error('Error deleting text:', error);
+                alert(`Error deleting text: ${error.message}`);
+            }
+        }
+
+        // Create new text
+        document.getElementById('text-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/texts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title, content })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create text');
+                }
+                
+                // Clear form
+                document.getElementById('title').value = '';
+                document.getElementById('content').value = '';
+                
+                // Refresh texts
+                fetchTexts();
+            } catch (error) {
+                console.error('Error creating text:', error);
+                alert(`Error creating text: ${error.message}`);
+            }
+        });
+
+        // Initial load
+        fetchTexts();
+    </script>
+</body>
+</html>

@@ -66,12 +66,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:3000'], // Allow frontend URL
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+
+
+// In app.js, modify your session setup:
 
 // Session middleware with Redis store if available
 app.use(session({
     store: sessionStore, // Will be undefined if Redis setup failed
-    secret: config.SESSION_SECRET || config.JWT_SECRET || 'your-secret-key',
+    secret: config.SESSION_SECRET || 'fallback-secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -81,7 +90,14 @@ app.use(session({
     }
 }));
 
-// Rest of your code remains the same...
+// Add debug middleware to check session and user
+app.use((req, res, next) => {
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('User authenticated:', !!req.user);
+    next();
+});
+
 
 
 // Logging
@@ -103,9 +119,15 @@ app.use('/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));
 
 // Home route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-});
+// app.get('/', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../public/index.html'));
+// });
+
+// // Dashboard route
+// app.get('/dashboard', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+// });
+
 
 // Error handling middleware
 app.use((req, res, next) => {

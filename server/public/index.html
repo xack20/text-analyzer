@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .btn {
+            display: inline-block;
+            background: #4285F4;
+            color: #fff;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Text Analyzer</h1>
+    
+    <div class="container">
+        <h2>Welcome to Text Analyzer</h2>
+        <p>This application allows you to analyze text for various metrics including word count, character count, sentence count, paragraph count, and longest words.</p>
+        
+        <a href="/auth/google" class="btn">Login with Google</a>
+    </div>
+    
+    <div class="container" id="token-display" style="display: none;">
+        <h2>Your Access Token</h2>
+        <p>Use this token for API requests:</p>
+        <code id="token-value" style="word-break: break-all; display: block; padding: 10px; background: #f4f4f4;"></code>
+    </div>
+
+    <script>
+        // Check if token is in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        if (token) {
+            // Display token
+            document.getElementById('token-display').style.display = 'block';
+            document.getElementById('token-value').textContent = token;
+            
+            // Store token in localStorage
+            localStorage.setItem('textAnalyzerToken', token);
+            
+            // Clean URL
+            window.history.replaceState({}, document.title, '/');
+        }
+    </script>
+</body>
+</html>

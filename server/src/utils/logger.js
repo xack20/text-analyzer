@@ -16,7 +16,6 @@ const logger = winston.createLogger({
     format: logFormat,
     defaultMeta: { service: 'text-analyzer' },
     transports: [
-        // Write logs to console
         new winston.transports.Console({
             format: winston.format.combine(
                 winston.format.colorize(),
