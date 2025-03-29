@@ -165,4 +165,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Contact
 
-For any issues or questions, please contact the project maintainer at `zakariahossain20example.com`.
+For any issues or questions, please contact the project maintainer at `zakariahossain20@gmail.com`.
