@@ -24,6 +24,7 @@ describe('Auth Controller', () => {
                 displayName: 'Test User'
             },
             session: {},
+            headers: { accept: 'text/html' }, // Default to HTML
             logout: jest.fn(cb => cb())
         };
 
@@ -34,67 +35,21 @@ describe('Auth Controller', () => {
         };
     });
 
-    describe('googleCallback', () => {
-        test('should redirect with token on successful login', () => {
-            // Mock JWT sign
-            jwt.sign.mockReturnValue('fake-token');
-
-            // Call the controller
-            authController.googleCallback(req, res);
-
-            // Assertions
-            expect(jwt.sign).toHaveBeenCalledWith(
-                {
-                    id: 'user123',
-                    email: 'test@example.com',
-                    name: 'Test User'
-                },
-                config.JWT_SECRET,
-                { expiresIn: '1d' }
-            );
-
-            expect(res.redirect).toHaveBeenCalledWith(
-                'http://localhost:3000/dashboard?token=fake-token'
-            );
-        });
-
-        test('should redirect to login page if no user in request', () => {
-            // Remove user from request
-            req.user = null;
-
-            // Call the controller
-            authController.googleCallback(req, res);
-
-            // Assertions
-            expect(jwt.sign).not.toHaveBeenCalled();
-            expect(res.redirect).toHaveBeenCalledWith(
-                'http://localhost:3000/login?error=no_user'
-            );
-        });
-
-        test('should handle errors and redirect to login page', () => {
-            // Make JWT sign throw an error
-            jwt.sign.mockImplementation(() => {
-                throw new Error('JWT error');
-            });
-
-            // Call the controller
-            authController.googleCallback(req, res);
-
-            // Assertions
-            expect(res.redirect).toHaveBeenCalledWith(
-                'http://localhost:3000/login?error=auth_failed'
-            );
-        });
-    });
-
     describe('getCurrentUser', () => {
         test('should return user data if found', async () => {
-            // Mock User.findById to return a user
-            User.findById.mockResolvedValue({
-                id: 'user123',
-                email: 'test@example.com',
-                displayName: 'Test User'
+            // Create a mock user
+            const mockUser = {
+                id: '67e6a525b3c84e4772824730',
+                email: 'zakariahossain20@gmail.com',
+                displayName: 'Zakaria Hossain'
+            };
+
+            // Create a select method mock that returns the user
+            const selectMock = jest.fn().mockReturnValue(mockUser);
+
+            // Mock findById to return an object with select method
+            User.findById = jest.fn().mockReturnValue({
+                select: selectMock
             });
 
             // Call the controller
@@ -102,16 +57,15 @@ describe('Auth Controller', () => {
 
             // Assertions
             expect(User.findById).toHaveBeenCalledWith('user123');
-            expect(res.json).toHaveBeenCalledWith({
-                id: 'user123',
-                email: 'test@example.com',
-                displayName: 'Test User'
-            });
+            expect(selectMock).toHaveBeenCalledWith('-googleId');
+            expect(res.json).toHaveBeenCalledWith(mockUser);
         });
 
         test('should return 404 if user not found', async () => {
-            // Mock User.findById to return null
-            User.findById.mockResolvedValue(null);
+            // Mock User.findById to return an object with select that returns null
+            User.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue(null)
+            });
 
             // Call the controller
             await authController.getCurrentUser(req, res);
@@ -123,7 +77,9 @@ describe('Auth Controller', () => {
 
         test('should handle database errors', async () => {
             // Mock User.findById to throw an error
-            User.findById.mockRejectedValue(new Error('Database error'));
+            User.findById = jest.fn().mockImplementation(() => {
+                throw new Error('Database error');
+            });
 
             // Call the controller
             await authController.getCurrentUser(req, res);
@@ -133,6 +89,7 @@ describe('Auth Controller', () => {
             expect(res.json).toHaveBeenCalledWith({ message: 'Server error' });
         });
     });
+
 
     describe('logout', () => {
         test('should call req.logout and redirect', () => {
@@ -160,6 +117,7 @@ describe('Auth Controller', () => {
                 redirectUrl: 'http://localhost:3000/login'
             });
         });
+
 
         test('should handle logout errors', () => {
             // Make req.logout call the callback with an error

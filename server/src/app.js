@@ -67,7 +67,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors({
-    origin: ['http://localhost:3000'], // Allow frontend URL
+    origin: process.env.NODE_ENV === 'production'
+        ? ['https://yourdomain.com']
+        : ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -75,7 +77,7 @@ app.use(cors({
 
 
 
-// In app.js, modify your session setup:
+
 
 // Session middleware with Redis store if available
 app.use(session({
@@ -90,7 +92,7 @@ app.use(session({
     }
 }));
 
-// Add debug middleware to check session and user
+
 app.use((req, res, next) => {
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
