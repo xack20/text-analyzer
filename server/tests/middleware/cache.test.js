@@ -1,4 +1,3 @@
-// tests/middleware/cache.test.js
 const { cache } = require('../../src/middleware/cache');
 const redis = require('redis');
 
@@ -7,13 +6,15 @@ jest.mock('redis', () => {
     const mockClient = {
         connected: true,
         get: jest.fn(),
-        set: jest.fn()
+        set: jest.fn(),
+        on: jest.fn().mockReturnThis() // Add the missing 'on' method
     };
 
     return {
         createClient: jest.fn().mockReturnValue(mockClient)
     };
 });
+
 
 describe('Cache Middleware', () => {
     let req, res, next, redisClient;

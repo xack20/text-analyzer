@@ -28,14 +28,6 @@ module.exports = {
             const decoded = jwt.verify(token, config.JWT_SECRET);
             logger.debug(`JWT verified for user: ${decoded.id}`);
 
-            // Optionally fetch full user data if needed
-            // const user = await User.findById(decoded.id);
-            // if (!user) {
-            //     logger.warn(`User not found for ID: ${decoded.id}`);
-            //     return res.status(401).json({ message: "User not found" });
-            // }
-
-            // Set user info on request
             req.user = decoded;
             next();
         } catch (error) {

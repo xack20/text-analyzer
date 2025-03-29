@@ -7,7 +7,6 @@ import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
     useEffect(() => {
-        // Fix for Ant Design styling issues in development mode
         const jssStyles = document.querySelector('#jss-server-side');
         if (jssStyles) {
             jssStyles.parentElement.removeChild(jssStyles);

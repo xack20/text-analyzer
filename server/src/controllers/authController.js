@@ -67,7 +67,6 @@ module.exports = {
             if (req.logout && typeof req.logout === 'function') {
                 req.logout(function (err) {
                     if (err) {
-                        console.error('Logout error:', err);
                         logger.error(`Logout error: ${err.message}`);
                         return res.status(500).json({
                             success: false,
@@ -128,9 +127,7 @@ module.exports = {
     },
 
 
-    // Add development login endpoint for testing
     devLogin: (req, res) => {
-        // Only available in development mode
         if (process.env.NODE_ENV === 'production') {
             return res.status(404).json({ message: 'Not found' });
         }

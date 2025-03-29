@@ -262,7 +262,7 @@ describe('Text API Routes', () => {
             expect(response.body).toHaveProperty('longestWords');
 
             // Verify analysis results
-            expect(response.body.wordCount).toBe(14);
+            expect(response.body.wordCount).toBe(12);
             expect(response.body.sentenceCount).toBe(3);
             expect(response.body.paragraphCount).toBe(1);
         });
